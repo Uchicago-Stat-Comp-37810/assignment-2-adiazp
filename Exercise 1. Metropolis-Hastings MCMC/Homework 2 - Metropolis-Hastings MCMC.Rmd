@@ -11,113 +11,114 @@ knitr::opts_chunk$set(error = TRUE)
 ```
 
 ```{r Test_data}
-#Question 1: Test data
-trueA <- 5 
-trueB <- 0 
-trueSd <- 10 
-sampleSize <- 31 
-
-# create independent x-values 
-x <- (-(sampleSize-1)/2):((sampleSize-1)/2) 
-y <-  trueA * x + trueB + rnorm(n=sampleSize,mean=0,sd=trueSd) 
+#Questions 1&2: Test data, with comments
+trueA <- 5 #True slope
+trueB <- 0 #True intercept
+trueSd <- 10 #True error sd
+sampleSize <- 31 #Sample size
  
-plot(x,y, main="Test Data") 
+# create independent x-values 
+x <- (-(sampleSize-1)/2):((sampleSize-1)/2) #Creates a simple, linear sample of x from -15 to +15 (size is 31 because it includes 0), i.e. x = c(-15,-14,...,0,...14,15)
+# create dependent values according to ax + b + N(0,sd)
+y <-  trueA * x + trueB + rnorm(n=sampleSize,mean=0,sd=trueSd) #Generated values for y
+ 
+plot(x,y, main="Test Data") #Plot of the data
 ```
 
 ```{r Likelihood}
-#Question 1: Likelihood function
-likelihood <- function(param){ 
-    a = param[1] 
-    b = param[2] 
-    sd = param[3] 
+#Questions 1&2: Likelihood function, with comments
+likelihood <- function(param){ #Define a likelihood function, with parameters defined by the vector in R^3 param
+    a = param[1] #Coordinate 1 is the slope
+    b = param[2] #Coordinate 2 is the intercept
+    sd = param[3] #Coordinate 3 is the error's sd
      
-    pred = a*x + b 
-    singlelikelihoods = dnorm(y, mean = pred, sd = sd, log = T)
-    sumll = sum(singlelikelihoods) 
-    return(sumll) 
+    pred = a*x + b #Fit the estimate of y with these values
+    singlelikelihoods = dnorm(y, mean = pred, sd = sd, log = T) #These likelihoods are based on the multivariate normal distribution of y, with mean a*x+b and sd of the errors. The probabilities are returned as a vector of logs (i.e. log(p)).
+    sumll = sum(singlelikelihoods) #Since the probabilities are in logs, assuming the observations are i.i.d., sumll calculates the log of the probability of getting the sample
+    return(sumll) #Return log(P(Getting this sample of y))
 }
  
 # Example: plot the likelihood profile of the slope a
-slopevalues <- function(x){return(likelihood(c(x, trueB, trueSd)))} 
-slopelikelihoods <- lapply(seq(3, 7, by=.05), slopevalues )
-plot (seq(3, 7, by=.05), slopelikelihoods , type="l", xlab = "values of slope parameter a", ylab = "Log likelihood") 
+slopevalues <- function(x){return(likelihood(c(x, trueB, trueSd)))} #Returns the probability of getting the sample using the true values
+slopelikelihoods <- lapply(seq(3, 7, by=.05), slopevalues ) #Applies the function for the list implicit in the sequence
+plot (seq(3, 7, by=.05), slopelikelihoods , type="l", xlab = "values of slope parameter a", ylab = "Log likelihood") #Plots the results
 ```
 
 ```{r Defining_the_prior}
-#Question 1: Defining the prior
+#Questions 1&2: Defining the prior, with comments
 # Prior distribution
-prior <- function(param){ 
-    a = param[1] 
-    b = param[2] 
-    sd = param[3] 
-    aprior = dunif(a, min=0, max=10, log = T) 
-    bprior = dnorm(b, sd = 5, log = T) 
-    sdprior = dunif(sd, min=0, max=30, log = T) 
-    return(aprior+bprior+sdprior) 
+prior <- function(param){ #Define a prior distribution function, with parameters defined by the vector in R^3 param
+    a = param[1] #Coordinate 1 is the slope
+    b = param[2] #Coordinate 2 is the intercept
+    sd = param[3] #Coordinate 3 is the error's sd
+    aprior = dunif(a, min=0, max=10, log = T) #Uniform(0,10) prior for the slope, in log
+    bprior = dnorm(b, sd = 5, log = T) #Normal(b,5) prior for the intercept, in log
+    sdprior = dunif(sd, min=0, max=30, log = T) #Uniform(0,30) prior for the error's sd, in log
+    return(aprior+bprior+sdprior) #Since they are in logs, it is okay to return the sum of the parameters
 }
 ```
 
 ```{r Defining_the_posterior}
-#Question 1: Defining the posterior
-posterior <- function(param){ 
-   return (likelihood(param) + prior(param)) 
+#Questions 1&2: Defining the posterior, with comments
+posterior <- function(param){ #Function calculating the posterior, using parameters defined by the vector in R^3 param
+   return (likelihood(param) + prior(param)) #Both are in logs, so they can be summed. This applies Bayes' Theorem.
 }
 ```
 
 ```{r Metropolis-Hastings_MCMC}
-#Question 1: Metropolis-Hastings MCMC algorithm
+#Questions 1&2: Metropolis-Hastings MCMC algorithm, with comments
 ######## Metropolis algorithm ################
  
-proposalfunction <- function(param){ 
-    return(rnorm(3,mean = param, sd= c(0.1,0.5,0.3))) 
+proposalfunction <- function(param){ #Function specifying the distribution of the updating rule that will be used to generate the candidate values for the parameters, with param defined on R^3
+    return(rnorm(3,mean = param, sd= c(0.1,0.5,0.3))) #The updating rule is based on a multivariable normal distribution with mean param and a fixed sd (and zero correlation between the different parameters)
 }
  
-run_metropolis_MCMC <- function(startvalue, iterations){ 
-    chain = array(dim = c(iterations+1,3)) 
-    chain[1,] = startvalue 
-    for (i in 1:iterations){ 
-        proposal = proposalfunction(chain[i,]) 
-        
-        probab = exp(posterior(proposal) - posterior(chain[i,])) 
-        if (runif(1) < probab){ 
-            chain[i+1,] = proposal 
-        }else{
-            chain[i+1,] = chain[i,] 
+run_metropolis_MCMC <- function(startvalue, iterations){ #Metropolis-Hastings MCMC algorithm itself, setting a starting value (a vector in R^3) and the number of iterations
+    chain = array(dim = c(iterations+1,3)) #Array to store the generated data (the Markov Chain)
+    chain[1,] = startvalue #First value of the chain are the previously specified starting values
+    for (i in 1:iterations){ #A loop of "iterations" times
+        proposal = proposalfunction(chain[i,]) #Generate a possible new term for the chain, using the proposal function defined above to generate it. The possibly new value, thus, comes from a multivariate normal with mean equal to the currently used term in the Markov Chain.
+         
+        probab = exp(posterior(proposal) - posterior(chain[i,])) #Ratio between the probability of getting the proposed parameter values and the vector currently used in the chain
+        if (runif(1) < probab){ #Updating condition based on a random threshold generated from an Uniform(0,1)
+            chain[i+1,] = proposal #If the ratio of the probability of getting the proposed value and the probability of using the current value of the chain is greater than the randomly generated threshold, then the parameter gets updated 
+        }else{ #If it is not...
+            chain[i+1,] = chain[i,] #...Then the current value is kept
         }
     }
-    return(chain) 
-} 
-
-startvalue = c(4,0,10) 
-chain = run_metropolis_MCMC(startvalue, 10000)
+    return(chain) #Returns the resulting series of parameter values (i.e. their generated distribution)
+} #Ends the algorithm
  
-burnIn = 5000 
-acceptance = 1-mean(duplicated(chain[-(1:burnIn),])) 
+startvalue = c(4,0,10) #Example
+chain = run_metropolis_MCMC(startvalue, 10000) #Uses the example to generate a chain using the Metropolis-Hastings MCMC for 10,000 iterations
+ 
+burnIn = 5000 #Number of initial terms of the chain to be discarded to avoid bias resulting from the initial value
+acceptance = 1-mean(duplicated(chain[-(1:burnIn),])) #Acceptance rate, duplicated(chain[-(1:burnIn),]) considers the number of duplicates (rejections) in the chain, excluding the first burnIn (5000) terms
 ```
 
 ```{r Summary_plots}
-#Question 1: Summary plots
+#Questions 1&2: Summary plots, with comments
 
 ### Summary: #######################
  
 par(mfrow = c(2,3))
-hist(chain[-(1:burnIn),1],nclass=30, , main="Posterior of a", xlab="True value = red line" )
-abline(v = mean(chain[-(1:burnIn),1]))
-abline(v = trueA, col="red" )
-hist(chain[-(1:burnIn),2],nclass=30, main="Posterior of b", xlab="True value = red line")
-abline(v = mean(chain[-(1:burnIn),2]))
-abline(v = trueB, col="red" )
-hist(chain[-(1:burnIn),3],nclass=30, main="Posterior of sd", xlab="True value = red line")
-abline(v = mean(chain[-(1:burnIn),3]) )
-abline(v = trueSd, col="red" )
-plot(chain[-(1:burnIn),1], type = "l", xlab="True value = red line" , main = "Chain values of a", )
-abline(h = trueA, col="red" )
-plot(chain[-(1:burnIn),2], type = "l", xlab="True value = red line" , main = "Chain values of b", )
-abline(h = trueB, col="red" )
-plot(chain[-(1:burnIn),3], type = "l", xlab="True value = red line" , main = "Chain values of sd", )
-abline(h = trueSd, col="red" )
+hist(chain[-(1:burnIn),1],nclass=30, , main="Posterior of a", xlab="True value = red line" ) #Histogram for the posterior of a
+abline(v = mean(chain[-(1:burnIn),1])) #Line with the mean values of the chain for a
+abline(v = trueA, col="red" ) #Line with the true value of a
+hist(chain[-(1:burnIn),2],nclass=30, main="Posterior of b", xlab="True value = red line")  #Histogram for the posterior of b
+abline(v = mean(chain[-(1:burnIn),2])) #Line with the mean values of the chain for b
+abline(v = trueB, col="red" ) #Line with the true value of b
+hist(chain[-(1:burnIn),3],nclass=30, main="Posterior of sd", xlab="True value = red line")  #Histogram for the posterior of sd
+abline(v = mean(chain[-(1:burnIn),3]) ) #Line with the mean values of the chain for sd
+abline(v = trueSd, col="red" ) #Line with the true value of sd
+plot(chain[-(1:burnIn),1], type = "l", xlab="True value = red line" , main = "Chain values of a", ) #Plot with all the values for a in the chain
+abline(h = trueA, col="red" ) #Line showing the true value of a
+plot(chain[-(1:burnIn),2], type = "l", xlab="True value = red line" , main = "Chain values of b", ) #Plot with all the values for b in the chain
+abline(h = trueB, col="red" ) #Line showing the true value of b
+plot(chain[-(1:burnIn),3], type = "l", xlab="True value = red line" , main = "Chain values of sd", ) #Plot with all the values for sd in the chain
+abline(h = trueSd, col="red" ) #Line showing the true value of sd
  
 # for comparison:
-summary(lm(y~x))
+summary(lm(y~x)) #Linear regression between X and Y
 #Comment: Values are close, but not exactly the same as the true values. This is because the densities of the posterior distributions of a and sd are not centered on the true values of a and sd, although they are close.
 ```
