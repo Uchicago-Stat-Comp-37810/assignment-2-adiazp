@@ -10,7 +10,7 @@ output:
 knitr::opts_chunk$set(error = TRUE)
 ```
 
-```{r Test_data}
+```{r Test_data, echo=FALSE}
 #Questions 1&2: Test data, with comments
 trueA <- 5 #True slope
 trueB <- 0 #True intercept
@@ -25,7 +25,7 @@ y <-  trueA * x + trueB + rnorm(n=sampleSize,mean=0,sd=trueSd) #Generated values
 plot(x,y, main="Test Data") #Plot of the data
 ```
 
-```{r Likelihood}
+```{r Likelihood, echo=FALSE}
 #Questions 1&2: Likelihood function, with comments
 likelihood <- function(param){ #Define a likelihood function, with parameters defined by the vector in R^3 param
     a = param[1] #Coordinate 1 is the slope
@@ -44,7 +44,7 @@ slopelikelihoods <- lapply(seq(3, 7, by=.05), slopevalues ) #Applies the functio
 plot (seq(3, 7, by=.05), slopelikelihoods , type="l", xlab = "values of slope parameter a", ylab = "Log likelihood") #Plots the results
 ```
 
-```{r Defining_the_prior}
+```{r Defining_the_prior, echo=FALSE}
 #Questions 1&2: Defining the prior, with comments
 # Prior distribution
 prior <- function(param){ #Define a prior distribution function, with parameters defined by the vector in R^3 param
@@ -58,14 +58,14 @@ prior <- function(param){ #Define a prior distribution function, with parameters
 }
 ```
 
-```{r Defining_the_posterior}
+```{r Defining_the_posterior, echo=FALSE}
 #Questions 1&2: Defining the posterior, with comments
 posterior <- function(param){ #Function calculating the posterior, using parameters defined by the vector in R^3 param
    return (likelihood(param) + prior(param)) #Both are in logs, so they can be summed. This applies Bayes' Theorem.
 }
 ```
 
-```{r Metropolis-Hastings_MCMC}
+```{r Metropolis-Hastings_MCMC, echo=FALSE}
 #Questions 1&2: Metropolis-Hastings MCMC algorithm, with comments
 ######## Metropolis algorithm ################
  
@@ -96,7 +96,7 @@ burnIn = 5000 #Number of initial terms of the chain to be discarded to avoid bia
 acceptance = 1-mean(duplicated(chain[-(1:burnIn),])) #Acceptance rate, duplicated(chain[-(1:burnIn),]) considers the number of duplicates (rejections) in the chain, excluding the first burnIn (5000) terms
 ```
 
-```{r Summary_plots}
+```{r Summary_plots, echo=FALSE}
 #Questions 1&2: Summary plots, with comments
 
 ### Summary: #######################
@@ -123,7 +123,7 @@ summary(lm(y~x)) #Linear regression between X and Y
 #Comment: Values are close, but not exactly the same as the true values. This is because the densities of the posterior distributions of a and sd are not centered on the true values of a and sd, although they are close.
 ```
 
-```{r Fn_summary_plots}
+```{r Fn_summary_plots, echo=FALSE}
 #Question 3: Function of Metropolis=Hastings with summary plots
 
 MHMCMCplots<-function(startvalues,iterations,burnIn,numbclass,trueA,trueB,trueSd) {
@@ -148,7 +148,7 @@ MHMCMCplots<-function(startvalues,iterations,burnIn,numbclass,trueA,trueB,trueSd
 MHMCMCplots(c(4,0,10),10000,5000,30,5,0,10) #Example
 ```
 
-```{r Compare_outcomes}
+```{r Compare_outcomes, echo=FALSE}
 #Question 5: Comparison of outcomes
 compare_outcomes<-function(iterations) { #Function of number of iterations
   a<-runif(10,0,10) #Generated a from an Uniform(0,10)
@@ -169,3 +169,6 @@ compare_outcomes(1000)
 compare_outcomes(10000)
 compare_outcomes(100000)
 ```
+
+*Question 6*
+#When running the function compare_outcomes, it can be seen that the values have less dispersion as the number of iterations increases. It makes sense because with a bigger sample size, the mean is less disperse.
