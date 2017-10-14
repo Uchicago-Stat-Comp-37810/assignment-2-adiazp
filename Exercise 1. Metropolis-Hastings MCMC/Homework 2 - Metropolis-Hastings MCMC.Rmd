@@ -25,6 +25,46 @@ y <-  trueA * x + trueB + rnorm(n=sampleSize,mean=0,sd=trueSd) #Generated values
 plot(x,y, main="Test Data") #Plot of the data
 ```
 
+```{r Likelihood}
+#Questions 1&2: Likelihood function, with comments
+likelihood <- function(param){ #Define a likelihood function, with parameters defined by the vector in R^3 param
+    a = param[1] #Coordinate 1 is the slope
+    b = param[2] #Coordinate 2 is the intercept
+    sd = param[3] #Coordinate 3 is the error's sd
+     
+    pred = a*x + b #Fit the estimate of y with these values
+    singlelikelihoods = dnorm(y, mean = pred, sd = sd, log = T) #These likelihoods are based on the multivariate normal distribution of y, with mean a*x+b and sd of the errors. The probabilities are returned as a vector of logs (i.e. log(p)).
+    sumll = sum(singlelikelihoods) #Since the probabilities are in logs, assuming the observations are i.i.d., sumll calculates the log of the probability of getting the sample
+    return(sumll) #Return log(P(Getting this sample of y))
+}
+ 
+# Example: plot the likelihood profile of the slope a
+slopevalues <- function(x){return(likelihood(c(x, trueB, trueSd)))} #Returns the probability of getting the sample using the true values
+slopelikelihoods <- lapply(seq(3, 7, by=.05), slopevalues ) #Applies the function for the list implicit in the sequence
+plot (seq(3, 7, by=.05), slopelikelihoods , type="l", xlab = "values of slope parameter a", ylab = "Log likelihood") #Plots the results
+```
+
+```{r Defining_the_prior}
+#Questions 1&2: Defining the prior, with comments
+# Prior distribution
+prior <- function(param){ #Define a prior distribution function, with parameters defined by the vector in R^3 param
+    a = param[1] #Coordinate 1 is the slope
+    b = param[2] #Coordinate 2 is the intercept
+    sd = param[3] #Coordinate 3 is the error's sd
+    aprior = dunif(a, min=0, max=10, log = T) #Uniform(0,10) prior for the slope, in log
+    bprior = dnorm(b, sd = 5, log = T) #Normal(b,5) prior for the intercept, in log
+    sdprior = dunif(sd, min=0, max=30, log = T) #Uniform(0,30) prior for the error's sd, in log
+    return(aprior+bprior+sdprior) #Since they are in logs, it is okay to return the sum of the parameters
+}
+```
+
+```{r Defining_the_posterior}
+#Questions 1&2: Defining the posterior, with comments
+posterior <- function(param){ #Function calculating the posterior, using parameters defined by the vector in R^3 param
+   return (likelihood(param) + prior(param)) #Both are in logs, so they can be summed. This applies Bayes' Theorem.
+}
+```
+
 ```{r Metropolis-Hastings_MCMC}
 #Questions 1&2: Metropolis-Hastings MCMC algorithm, with comments
 ######## Metropolis algorithm ################
@@ -38,7 +78,6 @@ run_metropolis_MCMC <- function(startvalue, iterations){ #Metropolis-Hastings MC
     chain[1,] = startvalue #First value of the chain are the previously specified starting values
     for (i in 1:iterations){ #A loop of "iterations" times
         proposal = proposalfunction(chain[i,]) #Generate a possible new term for the chain, using the proposal function defined above to generate it. The possibly new value, thus, comes from a multivariate normal with mean equal to the currently used term in the Markov Chain.
-        source("Homework 2 - Metropolis-Hastings MCMC Separate script with functions.r")
          
         probab = exp(posterior(proposal) - posterior(chain[i,])) #Ratio between the probability of getting the proposed parameter values and the vector currently used in the chain
         if (runif(1) < probab){ #Updating condition based on a random threshold generated from an Uniform(0,1)
@@ -107,4 +146,26 @@ MHMCMCplots<-function(startvalues,iterations,burnIn,numbclass,trueA,trueB,trueSd
   abline(h = trueSd, col="red" )
 }
 MHMCMCplots(c(4,0,10),10000,5000,30,5,0,10) #Example
+```
+
+```{r Compare_outcomes}
+#Question 5: Comparison of outcomes
+compare_outcomes<-function(iterations) { #Function of number of iterations
+  a<-runif(10,0,10) #Generated a from an Uniform(0,10)
+  b<-runif(10,-5,5) #Generated b from an Uniform(-5,5)
+  sd<-runif(10,5,15) #Generated sd from an Uniform(5,15)
+  meana<<-c() #Empty vector to use for means
+  sda<<-c() #Empty vector to use for sd
+  for (i in 1:10) { #Loop to run the algorthm 10 times
+    chain<-run_metropolis_MCMC(c(a[i],b[i],sd[i]),iterations) #Run the algorithm using the starting values in place i for each a, b, sd
+    meana<<-c(meana,mean(chain[,1])) #Compute the mean of the chain for i
+    sda<<-c(sda,sd(chain[,1])) #Compute the sd of the chain for i
+  }
+  print(meana) #Print results for the mean
+  print(sda) #Print results for the sd
+}
+#Run the comparisons:
+compare_outcomes(1000)
+compare_outcomes(10000)
+compare_outcomes(100000)
 ```
